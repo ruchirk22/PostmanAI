@@ -24,7 +24,6 @@ const fetchCollections = async () => {
 
 /**
  * Fetches the complete details for a single collection.
- * @param {string} collectionId - The ID or UID of the collection to fetch.
  */
 const fetchSingleCollection = async (collectionId) => {
   const postmanApiKey = process.env.POSTMAN_API_KEY;
@@ -44,8 +43,6 @@ const fetchSingleCollection = async (collectionId) => {
 
 /**
  * Creates a new, empty collection in Postman.
- * @param {string} newCollectionName - The name for the new collection.
- * @param {string} workspaceId - The ID of the workspace to create the collection in.
  */
 const createCollection = async (newCollectionName, workspaceId) => {
     const postmanApiKey = process.env.POSTMAN_API_KEY;
@@ -73,11 +70,8 @@ const createCollection = async (newCollectionName, workspaceId) => {
     }
 };
 
-
 /**
- * **NEW**: Creates a folder inside a specified collection.
- * @param {string} collectionId - The ID of the collection.
- * @param {string} folderName - The name of the new folder.
+ * Creates a folder inside a specified collection.
  */
 const createFolderInCollection = async (collectionId, folderName) => {
     const postmanApiKey = process.env.POSTMAN_API_KEY;
@@ -87,7 +81,7 @@ const createFolderInCollection = async (collectionId, folderName) => {
         }, {
             headers: { 'x-api-key': postmanApiKey },
         });
-        return response.data.data; // The new folder object
+        return response.data.data;
     } catch (error) {
         console.error(`Error creating folder "${folderName}":`, error.response ? error.response.data : error.message);
         throw new Error('Failed to create folder.');
@@ -95,31 +89,53 @@ const createFolderInCollection = async (collectionId, folderName) => {
 };
 
 
+
+
 /**
- * **MODIFIED**: Creates a new request inside a collection, optionally within a folder.
+ * **THE FIX**: Creates a new request with the corrected API payload structure.
  * @param {string} collectionId - The ID of the collection.
- * @param {object} requestData - The Postman request object to create.
+ * @param {object} requestData - The complete Postman request object.
  * @param {string|null} folderId - The ID of the folder to add the request to (optional).
  */
 const createRequestInCollection = async (collectionId, requestData, folderId) => {
     const postmanApiKey = process.env.POSTMAN_API_KEY;
+    
     // The API endpoint changes based on whether we are adding to a folder or the root.
     const url = folderId
         ? `${postmanApiUrl}/collections/${collectionId}/folders/${folderId}/requests`
         : `${postmanApiUrl}/collections/${collectionId}/requests`;
 
+    // **CORRECTED PAYLOAD**: The Postman API expects the entire request object
+    // to be nested under a single "request" key.
+    const payload = {
+        request: requestData
+    };
+
     try {
-        const response = await axios.post(url, {
-            name: requestData.name,
-            description: requestData.description || '',
-            request: requestData // The full request object from the source collection
-        }, {
+        const response = await axios.post(url, payload, {
             headers: { 'x-api-key': postmanApiKey },
         });
         return response.data.data;
     } catch (error) {
-        console.error(`Error creating request "${requestData.name}":`, error.response ? error.response.data : error.message);
-        throw new Error('Failed to create new request.');
+        // Add more detailed logging for debugging
+        console.error(`Error creating request "${requestData.name}" in collection ${collectionId}:`, error.response ? JSON.stringify(error.response.data, null, 2) : error.message);
+        console.error('Payload sent:', JSON.stringify(payload, null, 2));
+        throw new Error('Failed to create new request in collection.');
+    }
+};
+
+const updateRequestInCollection = async (collectionId, requestId, updatedRequestData) => {
+    const postmanApiKey = process.env.POSTMAN_API_KEY;
+    const url = `${postmanApiUrl}/collections/${collectionId}/requests/${requestId}`;
+    const payload = { request: updatedRequestData };
+    try {
+        const response = await axios.put(url, payload, {
+            headers: { 'x-api-key': postmanApiKey },
+        });
+        return response.data.data;
+    } catch (error) {
+        console.error(`Error updating request "${requestId}":`, error.response ? JSON.stringify(error.response.data, null, 2) : error.message);
+        throw new Error('Failed to update request.');
     }
 };
 
@@ -130,4 +146,6 @@ module.exports = {
   createCollection,
   createFolderInCollection,
   createRequestInCollection,
+  // **THE FIX**: Correctly exporting the update function.
+  updateRequestInCollection,
 };

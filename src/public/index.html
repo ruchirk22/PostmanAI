@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Postman AI Assistant</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- **NEW**: Add Showdown.js for Markdown rendering -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/showdown/2.1.0/showdown.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         body { font-family: 'Inter', sans-serif; }
@@ -15,6 +17,12 @@
         @keyframes spin {
             to { transform: rotate(360deg); }
         }
+        /* Styles for the audit report */
+        #resultsContent h1, #resultsContent h2 { font-size: 1.25rem; font-weight: 600; margin-top: 1rem; border-bottom: 1px solid #4a5568; padding-bottom: 0.25rem; }
+        #resultsContent h3 { font-size: 1.1rem; font-weight: 600; margin-top: 0.8rem; }
+        #resultsContent p { margin-top: 0.5rem; }
+        #resultsContent ul { list-style-type: disc; margin-left: 1.5rem; margin-top: 0.5rem; }
+        #resultsContent code { background-color: #1a202c; padding: 0.1rem 0.3rem; border-radius: 0.25rem; font-family: monospace; }
     </style>
 </head>
 <body class="bg-gray-900 text-white">
@@ -22,12 +30,11 @@
     <div class="container mx-auto p-4 md:p-8">
         <header class="text-center mb-10">
             <h1 class="text-4xl md:text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-yellow-400">Postman AI Assistant</h1>
-            <p class="text-gray-400 mt-2">Analyze collections, generate examples, and get insights with AI.</p>
+            <p class="text-gray-400 mt-2">Supercharge your API workflow with AI.</p>
         </header>
 
         <main class="max-w-4xl mx-auto bg-gray-800 rounded-2xl shadow-2xl p-6 md:p-8">
             
-            <!-- Step 1: Fetch Collections -->
             <div class="mb-8">
                 <h2 class="text-2xl font-semibold mb-4 border-b border-gray-700 pb-2">Step 1: Fetch Your Collections</h2>
                 <div class="flex flex-col sm:flex-row items-center gap-4">
@@ -38,7 +45,6 @@
                 </div>
             </div>
 
-            <!-- Step 2: Select a Collection -->
             <div id="collectionSelector" class="mb-8 hidden">
                 <h2 class="text-2xl font-semibold mb-4 border-b border-gray-700 pb-2">Step 2: Select a Collection</h2>
                 <select id="collectionsDropdown" class="w-full bg-gray-700 text-white rounded-lg px-4 py-2 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-orange-500">
@@ -46,26 +52,38 @@
                 </select>
             </div>
 
-            <!-- Step 3: Choose Action -->
-            <div id="actions" class="hidden">
-                <h2 class="text-2xl font-semibold mb-4 border-b border-gray-700 pb-2">Step 3: Run AI Actions</h2>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <button id="analyzeBtn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg transition-colors duration-300">Analyze Collection</button>
-                    <button id="generateBtn" class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg transition-colors duration-300">Generate Examples</button>
+            <!-- **NEW**: Actions are now split into different sections -->
+            <div id="actions" class="hidden space-y-6">
+                <!-- Collection-level Actions -->
+                <div>
+                    <h3 class="text-xl font-semibold mb-3">Collection-Wide Actions</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <button id="analyzeBtn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg transition-colors duration-300">Analyze Collection</button>
+                        <button id="generateBtn" class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-lg transition-colors duration-300">Generate Examples</button>
+                        <button id="auditBtn" class="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-4 rounded-lg transition-colors duration-300">AI Security Audit</button>
+                    </div>
+                </div>
+
+                <!-- Request-level Actions -->
+                <div id="requestActions" class="hidden">
+                    <h3 class="text-xl font-semibold mb-3">Request-Specific Actions</h3>
+                    <div class="flex flex-col sm:flex-row items-center gap-4">
+                        <select id="requestsDropdown" class="w-full bg-gray-700 text-white rounded-lg px-4 py-2 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-orange-500"></select>
+                        <button id="generateTestBtn" class="w-full sm:w-auto bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-6 rounded-lg transition-colors duration-300 whitespace-nowrap">Generate Test</button>
+                    </div>
                 </div>
             </div>
 
-            <!-- Results Area -->
             <div id="results" class="mt-8 p-6 bg-gray-800/50 rounded-lg border border-gray-700 hidden">
                 <h3 id="resultsTitle" class="text-xl font-semibold mb-3 text-yellow-400"></h3>
                 <div id="resultsContent" class="text-gray-300 whitespace-pre-wrap"></div>
                 <div id="spinner" class="hidden w-8 h-8 rounded-full spinner mx-auto my-4"></div>
             </div>
-
         </main>
     </div>
 
     <script>
+        // DOM Elements
         const fetchCollectionsBtn = document.getElementById('fetchCollectionsBtn');
         const workspaceIdInput = document.getElementById('workspaceId');
         const collectionSelector = document.getElementById('collectionSelector');
@@ -73,40 +91,43 @@
         const actions = document.getElementById('actions');
         const analyzeBtn = document.getElementById('analyzeBtn');
         const generateBtn = document.getElementById('generateBtn');
+        const auditBtn = document.getElementById('auditBtn');
+        const requestActions = document.getElementById('requestActions');
+        const requestsDropdown = document.getElementById('requestsDropdown');
+        const generateTestBtn = document.getElementById('generateTestBtn');
         const results = document.getElementById('results');
         const resultsTitle = document.getElementById('resultsTitle');
         const resultsContent = document.getElementById('resultsContent');
         const spinner = document.getElementById('spinner');
 
         let currentWorkspaceId = '';
+        const markdownConverter = new showdown.Converter(); // For audit reports
 
-        const showSpinner = (show) => {
-            spinner.style.display = show ? 'block' : 'none';
-        };
-
-        const showResults = (title, content, isLoading = false) => {
+        const showSpinner = (show) => spinner.style.display = show ? 'block' : 'none';
+        
+        const showResults = (title, content, isLoading = false, isMarkdown = false) => {
             results.style.display = 'block';
             resultsTitle.textContent = title;
-            resultsContent.innerHTML = content;
+            resultsContent.innerHTML = isMarkdown ? markdownConverter.makeHtml(content) : content;
             showSpinner(isLoading);
         };
 
         fetchCollectionsBtn.addEventListener('click', async () => {
             showResults('Fetching...', '', true);
             currentWorkspaceId = workspaceIdInput.value.trim();
+            actions.style.display = 'none';
+            requestActions.style.display = 'none';
             try {
                 const response = await fetch('/api/fetch-collections');
                 if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
                 const data = await response.json();
-
-                collectionsDropdown.innerHTML = '<option>-- Select a Collection --</option>';
+                collectionsDropdown.innerHTML = '<option value="">-- Select a Collection --</option>';
                 data.collections.forEach(c => {
                     const option = document.createElement('option');
                     option.value = c.id;
                     option.textContent = c.name;
                     collectionsDropdown.appendChild(option);
                 });
-
                 collectionSelector.style.display = 'block';
                 showResults('Success', `Found ${data.count} collections. Please select one.`);
             } catch (error) {
@@ -114,11 +135,41 @@
             }
         });
 
-        collectionsDropdown.addEventListener('change', () => {
-            if (collectionsDropdown.value && collectionsDropdown.value !== '-- Select a Collection --') {
+        const populateRequestsDropdown = (items, prefix = '') => {
+            items.forEach(item => {
+                const currentPrefix = prefix ? `${prefix} / ${item.name}` : item.name;
+                if (item.request) { // It's a request
+                    const option = document.createElement('option');
+                    option.value = item.id;
+                    option.textContent = currentPrefix;
+                    requestsDropdown.appendChild(option);
+                } else if (item.item) { // It's a folder
+                    populateRequestsDropdown(item.item, currentPrefix);
+                }
+            });
+        };
+
+        collectionsDropdown.addEventListener('change', async () => {
+            const collectionId = collectionsDropdown.value;
+            if (collectionId) {
                 actions.style.display = 'block';
+                showResults('Loading Requests...', '', true);
+                try {
+                    const response = await fetch(`/api/collection/${collectionId}`);
+                    if (!response.ok) throw new Error('Could not fetch collection details.');
+                    const collectionData = await response.json();
+                    
+                    requestsDropdown.innerHTML = '<option value="">-- Select a Request to Add a Test --</option>';
+                    populateRequestsDropdown(collectionData.item);
+                    
+                    requestActions.style.display = 'block';
+                    results.style.display = 'none';
+                } catch (error) {
+                    showResults('Error', error.message);
+                }
             } else {
                 actions.style.display = 'none';
+                requestActions.style.display = 'none';
             }
         });
 
@@ -139,9 +190,8 @@
         generateBtn.addEventListener('click', async () => {
             const collectionId = collectionsDropdown.value;
             if (!collectionId) return;
-            showResults('Generating Examples...', 'This may take a few moments. The AI is creating folders and requests...', true);
+            showResults('Generating Examples...', 'This may take a few moments...', true);
             try {
-                // Pass workspaceId as a query parameter
                 const url = `/api/generate-examples/${collectionId}?workspaceId=${encodeURIComponent(currentWorkspaceId)}`;
                 const response = await fetch(url, { method: 'POST' });
                 if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
@@ -150,6 +200,40 @@
                 showResults('Generation Complete!', content);
             } catch (error) {
                 showResults('Error', `Failed to generate examples: ${error.message}`);
+            }
+        });
+
+        // **NEW** Event listener for Audit Button
+        auditBtn.addEventListener('click', async () => {
+            const collectionId = collectionsDropdown.value;
+            if (!collectionId) return;
+            showResults('Performing Security & Performance Audit...', 'The AI is reviewing your collection...', true);
+            try {
+                const response = await fetch(`/api/audit-collection/${collectionId}`);
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                const data = await response.json();
+                showResults(`Audit Report for: ${data.collectionName}`, data.report, false, true); // Render as markdown
+            } catch (error) {
+                showResults('Error', `Failed to audit collection: ${error.message}`);
+            }
+        });
+
+        // **NEW** Event listener for Generate Test Button
+        generateTestBtn.addEventListener('click', async () => {
+            const collectionId = collectionsDropdown.value;
+            const requestId = requestsDropdown.value;
+            if (!collectionId || !requestId) return;
+            showResults('Generating AI Test Script...', '', true);
+            try {
+                const response = await fetch(`/api/generate-test/${collectionId}/${requestId}`, { method: 'POST' });
+                if (!response.ok) {
+                    const errData = await response.json();
+                    throw new Error(errData.message || 'Failed to generate test.');
+                }
+                const data = await response.json();
+                showResults('Success!', `${data.message}\nCheck the "Tests" tab for the request in Postman.`);
+            } catch (error) {
+                showResults('Error', `Failed to generate test: ${error.message}`);
             }
         });
 

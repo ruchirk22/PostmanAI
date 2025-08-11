@@ -8,14 +8,6 @@ const getAndSaveCollections = async (req, res) => {
   try {
     console.log('Fetching collections from Postman API...');
     const collections = await postmanService.fetchCollections();
-
-    // --- DEBUGGING STEP ---
-    // Log the names of the collections received from the API.
-    // This helps verify if we are getting the latest data from Postman.
-    const collectionNames = collections.map(c => c.name);
-    console.log('Collections received from API:', collectionNames);
-    // --- END DEBUGGING STEP ---
-
     const collectionsFilePath = path.join(__dirname, '..', 'data', 'collections.json');
     await fileHelper.saveJsonToFile(collectionsFilePath, collections);
 
@@ -29,4 +21,23 @@ const getAndSaveCollections = async (req, res) => {
   }
 };
 
-module.exports = { getAndSaveCollections };
+/**
+ * **NEW**: Gets the full details of a single collection, including all items (requests/folders).
+ */
+const getSingleCollectionDetails = async (req, res) => {
+    try {
+        const { collectionId } = req.params;
+        const collection = await postmanService.fetchSingleCollection(collectionId);
+        if (!collection) {
+            return res.status(404).json({ message: 'Collection not found.' });
+        }
+        res.status(200).json(collection);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+module.exports = { 
+    getAndSaveCollections,
+    getSingleCollectionDetails, // Export the new function
+};

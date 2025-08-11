@@ -2,9 +2,8 @@
 
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 
-/**
- * **ENHANCED**: Analyzes a collection summary to explain its purpose.
- */
+// No changes to getCollectionAnalysis, generateExampleBody, generateExampleQueryParams
+
 const getCollectionAnalysis = async (collectionSummary) => {
   const apiKey = process.env.GOOGLE_API_KEY;
   if (!apiKey) throw new Error('Google API key is not defined in .env file.');
@@ -30,14 +29,6 @@ const getCollectionAnalysis = async (collectionSummary) => {
   }
 };
 
-/**
- * **ENHANCED**: Generates an example JSON body for a given API request.
- * @param {object} requestDetails - Details of the request.
- * @param {string} requestDetails.name - The name of the request.
- *_@param {string} requestDetails.method - The HTTP method._
- * @param {string} requestDetails.path - The request path.
- * @param {object|null} requestDetails.originalBody - The parsed JSON of the original request body, if any.
- */
 const generateExampleBody = async (requestDetails) => {
   const apiKey = process.env.GOOGLE_API_KEY;
   if (!apiKey) throw new Error('Google API key is not defined in .env file.');
@@ -45,8 +36,6 @@ const generateExampleBody = async (requestDetails) => {
   try {
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
-
-    // Dynamically build the prompt with original body info if it exists
     let prompt = `
       You are an API testing assistant. Generate a realistic, example JSON request body.
       - ONLY output the raw JSON body.
@@ -56,21 +45,17 @@ const generateExampleBody = async (requestDetails) => {
       Method: ${requestDetails.method}
       Path: "${requestDetails.path}"
     `;
-
     if (requestDetails.originalBody) {
         prompt += `
       The original request has this structure, use it as a reference for the keys, but generate new, realistic values:
       ${JSON.stringify(requestDetails.originalBody, null, 2)}
       `;
     }
-
     prompt += `
       Example JSON Body:
     `;
-
     const result = await model.generateContent(prompt);
     let text = result.response.text();
-    // Clean up potential markdown formatting from the response
     text = text.replace(/```json/g, '').replace(/```/g, '').trim();
     return text;
   } catch (error) {
@@ -79,10 +64,6 @@ const generateExampleBody = async (requestDetails) => {
   }
 };
 
-/**
- * Generates example query parameters for a GET request.
- * @returns {Promise<Array<{key: string, value: string}>>} A promise that resolves to an array of key-value pairs.
- */
 const generateExampleQueryParams = async (requestName, requestPath) => {
   const apiKey = process.env.GOOGLE_API_KEY;
   if (!apiKey) throw new Error('Google API key is not defined in .env file.');
@@ -103,29 +84,105 @@ const generateExampleQueryParams = async (requestName, requestPath) => {
     `;
     const result = await model.generateContent(prompt);
     let text = result.response.text();
-    
-    // Make parsing more robust. Find the JSON array within the text.
     const jsonMatch = text.match(/\[.*\]/s);
     if (jsonMatch) {
       try {
         return JSON.parse(jsonMatch[0]);
       } catch (e) {
         console.error("Failed to parse JSON for query params:", text);
-        return []; // Return empty on parsing failure
+        return [];
       }
     }
-    
-    // If no array is found, return empty.
     return [];
   } catch (error) {
     console.error(`Error parsing or generating query params for "${requestName}":`, error);
-    // If AI fails or returns bad JSON, return an empty array to avoid crashing.
     return [];
   }
 };
+
+/**
+ * **NEW**: Generates a Postman test script for a request.
+ * @param {object} requestObject - The Postman request object.
+ * @returns {Promise<string>} A promise that resolves to the JavaScript test code.
+ */
+const generateTestScript = async (requestObject) => {
+    const apiKey = process.env.GOOGLE_API_KEY;
+    if (!apiKey) throw new Error('Google API key is not defined in .env file.');
+
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+
+    let prompt = `
+        You are an API test automation engineer. Generate a Postman test script for the following request.
+        The script should be in JavaScript.
+        - ALWAYS include a test for the status code (e.g., 200, 201).
+        - If the request is a GET, or has an example response, add a test to check if the response is valid JSON.
+        - If there is an example JSON response, add a test to check for the existence of 1-2 key properties.
+
+        Request Details:
+        Name: ${requestObject.name}
+        Method: ${requestObject.method}
+        
+        ONLY output the raw JavaScript code for the test script. Do not include markdown or explanations.
+    `;
+
+    // Add example response info to the prompt if available
+    if (requestObject.responses && requestObject.responses[0] && requestObject.responses[0].body) {
+        prompt += `
+        Example Response Body:
+        ${requestObject.responses[0].body}
+        `;
+    }
+
+    try {
+        const result = await model.generateContent(prompt);
+        let text = result.response.text();
+        return text.replace(/```javascript/g, '').replace(/```/g, '').trim();
+    } catch (error) {
+        console.error('Error in generateTestScript:', error);
+        throw new Error('Failed to generate test script from Gemini API.');
+    }
+};
+
+/**
+ * **NEW**: Audits a collection for security and performance issues.
+ * @param {string} collectionSummary - A detailed summary of the collection.
+ * @returns {Promise<string>} A promise that resolves to a Markdown report.
+ */
+const getSecurityAudit = async (collectionSummary) => {
+    const apiKey = process.env.GOOGLE_API_KEY;
+    if (!apiKey) throw new Error('Google API key is not defined in .env file.');
+
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+
+    const prompt = `
+        You are a senior cybersecurity and API performance analyst.
+        Analyze the following API collection summary and provide a report in Markdown format.
+        Focus on identifying potential security vulnerabilities, performance issues, and violations of REST best practices.
+        For each issue, provide a clear title, a brief explanation of the risk, and a specific recommendation.
+        If no major issues are found, state that the collection appears to follow good practices.
+
+        API Collection Summary:
+        ${collectionSummary}
+
+        Your Markdown Report:
+    `;
+
+    try {
+        const result = await model.generateContent(prompt);
+        return result.response.text();
+    } catch (error) {
+        console.error('Error in getSecurityAudit:', error);
+        throw new Error('Failed to get security audit from Gemini API.');
+    }
+};
+
 
 module.exports = {
   getCollectionAnalysis,
   generateExampleBody,
   generateExampleQueryParams,
+  generateTestScript,
+  getSecurityAudit,
 };

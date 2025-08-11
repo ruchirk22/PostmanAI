@@ -41,12 +41,30 @@
     "isPublic": false
   },
   {
+    "id": "94770607-af89-4139-9fdb-63e1ba8bfcda",
+    "name": "PostmanAI [AI Examples]",
+    "owner": "38713504",
+    "createdAt": "2025-08-11T10:20:09.000Z",
+    "updatedAt": "2025-08-11T10:20:13.000Z",
+    "uid": "38713504-94770607-af89-4139-9fdb-63e1ba8bfcda",
+    "isPublic": false
+  },
+  {
     "id": "442ed5dc-7d17-4ad0-9034-d0b39cf4aad9",
     "name": "PostmanAI [AI Examples]",
     "owner": "38713504",
     "createdAt": "2025-08-11T09:33:37.000Z",
     "updatedAt": "2025-08-11T09:33:42.000Z",
     "uid": "38713504-442ed5dc-7d17-4ad0-9034-d0b39cf4aad9",
+    "isPublic": false
+  },
+  {
+    "id": "53580cf6-ed43-49c0-8b38-045b69727816",
+    "name": "PostmanAI [AI Examples]",
+    "owner": "38713504",
+    "createdAt": "2025-08-11T09:56:59.000Z",
+    "updatedAt": "2025-08-11T09:57:05.000Z",
+    "uid": "38713504-53580cf6-ed43-49c0-8b38-045b69727816",
     "isPublic": false
   },
   {
