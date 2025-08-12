@@ -88,69 +88,56 @@ const generateApiDocumentation = async (req, res) => {
 const generateTestScript = async (req, res) => {
     try {
         const { collectionId, requestId } = req.params;
+        
+        // We still need to find the request to get its existing data
         const collection = await postmanService.fetchSingleCollection(req.postmanApiKey, collectionId);
-        
-        // This function recursively finds and updates the correct request in the collection object
-        const updateRequestInObject = (items, id, newScript) => {
-             for (let i = 0; i < items.length; i++) {
-                if (items[i].id === id) {
-                    // Ensure the request and event objects exist
-                    items[i].request = items[i].request || {};
-                    items[i].request.event = items[i].request.event || [];
-                    
-                    let testEvent = items[i].request.event.find(e => e.listen === 'test');
-                    if (!testEvent) {
-                        testEvent = { listen: 'test', script: { type: 'text/javascript', exec: [] } };
-                        items[i].request.event.push(testEvent);
-                    }
-                    
-                    // Prepend the new script to the top
-                    testEvent.script.exec.unshift(newScript);
-                    return items[i].name; // Return the name of the updated request
-                }
-                // Recurse into folders
-                if (items[i].item) {
-                    const updatedName = updateRequestInObject(items[i].item, id, newScript);
-                    if (updatedName) return updatedName;
-                }
-            }
-            return null;
-        };
-        
-        const itemToUpdate = findRequest(collection.item, requestId); // We need a findRequest helper for the name
-         if (!itemToUpdate) {
+        const itemToUpdate = findRequest(collection.item, requestId);
+
+        if (!itemToUpdate || !itemToUpdate.request) {
             return res.status(404).json({ message: 'Request not found in collection.' });
         }
 
+        // 1. Generate the test script from the AI service
         const scriptCode = await aiService.generateTestScript(itemToUpdate);
-        const newTestScript = `// AI-Generated Test (${new Date().toUTCString()})\n${scriptCode}\n`;
-
-        // Update the collection object in memory
-        const updatedRequestName = updateRequestInObject(collection.item, requestId, newTestScript);
-       
-        if (!updatedRequestName) {
-             return res.status(404).json({ message: 'Could not find request to update in collection object.' });
+        
+        // 2. Prepare the updated event data for the request
+        const updatedRequestData = { ...itemToUpdate.request };
+        updatedRequestData.event = updatedRequestData.event || [];
+        
+        let testEvent = updatedRequestData.event.find(e => e.listen === 'test');
+        if (!testEvent) {
+            testEvent = { listen: 'test', script: { type: 'text/javascript', exec: [] } };
+            updatedRequestData.event.push(testEvent);
         }
+        
+        const newTestScript = `// AI-Generated Test (${new Date().toUTCString()})\n${scriptCode}\n`;
+        // Add the new script to the top of the array for visibility
+        testEvent.script.exec.unshift(newTestScript);
 
-        // *** THE FIX: Reverting to the full collection update method ***
-        // This sends the entire modified collection back to Postman.
-        await postmanService.updateCollection(
+        // 3. *** THE FLAWLESS FIX ***
+        // Call the correct, specific service function to update only the single request.
+        // This is the most reliable method and avoids updating the entire collection.
+        await postmanService.updateRequestInCollection(
             req.postmanApiKey,
             collectionId,
-            collection
+            requestId,
+            updatedRequestData // Pass the modified request object
         );
 
+        // 4. Send a success response to the front end
         res.status(200).json({ 
-            message: `Successfully added AI test script to request: ${updatedRequestName}`,
+            message: `Successfully added AI test script to request: ${itemToUpdate.name}`,
             script: scriptCode
         });
+
     } catch (error) {
-        console.error('Error generating test script:', error);
-        res.status(500).json({ message: error.message });
+        // Provide detailed error logging for easier debugging on Vercel
+        console.error('Error in generateTestScript controller:', error);
+        res.status(500).json({ message: 'An internal error occurred while generating the test script.' });
     }
 };
 
-// You'll also need this helper function in the same file, you can place it above generateTestScript
+// Ensure this helper function is still present in the file
 const findRequest = (items, id) => {
     for (const item of items) {
         if (item.id === id) return item;
