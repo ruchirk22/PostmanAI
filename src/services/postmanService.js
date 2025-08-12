@@ -5,6 +5,7 @@ const postmanApiUrl = 'https://api.getpostman.com';
 
 const getHeaders = (apiKey) => ({
     'x-api-key': apiKey,
+    'Content-Type': 'application/json', // It's a good practice to always include Content-Type for PUT/POST
 });
 
 const fetchCollections = async (apiKey, workspaceId) => {
@@ -57,28 +58,41 @@ const updateCollection = async (apiKey, collectionId, collectionData) => {
     }
 };
 
+/**
+ * Updates a single request within a Postman collection using the specific endpoint for that action.
+ * This is more efficient and safer than updating the entire collection.
+ * @param {string} apiKey - The Postman API key.
+ * @param {string} collectionId - The ID of the collection containing the request.
+ * @param {string} requestId - The ID of the specific request to update.
+ * @param {object} requestData - The full, updated request object that will replace the existing one.
+ * @returns {Promise<object>} The updated request object returned from the Postman API.
+ */
 const updateRequestInCollection = async (apiKey, collectionId, requestId, requestData) => {
     if (!apiKey) {
         throw new Error('Postman API key is required.');
     }
     const url = `${postmanApiUrl}/collections/${collectionId}/requests/${requestId}`;
     
-    // The payload for a request update is simpler and only needs the relevant parts.
-    const payload = {
-        name: requestData.name,
-        description: requestData.description || null,
-        event: requestData.event,
-    };
+    // The payload for a request update is the request object itself.
+    // The `requestData` parameter is the complete, modified request object.
+    const payload = requestData;
 
     try {
-        // The API expects the payload to be nested under a 'request' key
-        const response = await axios.put(url, { request: payload }, {
+        // The Postman API for updating a single request expects the payload directly.
+        // It should NOT be nested under a 'request' key, which was the source of the error.
+        const response = await axios.put(url, payload, {
             headers: getHeaders(apiKey),
         });
-        return response.data.request;
+        return response.data;
     } catch (error) {
-        console.error(`Error updating request "${requestId}":`, error.response ? JSON.stringify(error.response.data, null, 2) : error.message);
-        throw new Error('Failed to update request in collection.');
+        // Provide more detailed error logging to help with future debugging.
+        const errorDetails = error.response 
+            ? `Status: ${error.response.status}, Data: ${JSON.stringify(error.response.data, null, 2)}` 
+            : error.message;
+        console.error(`Error updating request "${requestId}" in collection "${collectionId}": ${errorDetails}`);
+        // Log the exact payload that was sent to the API for inspection.
+        console.error('Payload Sent to Postman API:', JSON.stringify(payload, null, 2));
+        throw new Error('Failed to update the request in the Postman collection. Please check the server logs for details.');
     }
 };
 
@@ -86,5 +100,5 @@ module.exports = {
   fetchCollections,
   fetchSingleCollection,
   updateCollection,
-  updateRequestInCollection, // Add this line
+  updateRequestInCollection,
 };
