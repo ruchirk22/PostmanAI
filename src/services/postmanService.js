@@ -63,7 +63,7 @@ const updateRequestInCollection = async (apiKey, collectionId, requestId, reques
     }
     const url = `${postmanApiUrl}/collections/${collectionId}/requests/${requestId}`;
     
-    // The payload should contain the name, description, and the event (test script)
+    // The payload for a request update is simpler and only needs the relevant parts.
     const payload = {
         name: requestData.name,
         description: requestData.description || null,
@@ -71,6 +71,7 @@ const updateRequestInCollection = async (apiKey, collectionId, requestId, reques
     };
 
     try {
+        // The API expects the payload to be nested under a 'request' key
         const response = await axios.put(url, { request: payload }, {
             headers: getHeaders(apiKey),
         });

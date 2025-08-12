@@ -88,7 +88,6 @@ const generateApiDocumentation = async (req, res) => {
 const generateTestScript = async (req, res) => {
     try {
         const { collectionId, requestId } = req.params;
-        // We no longer need to fetch the entire collection, just find the request
         const collection = await postmanService.fetchSingleCollection(req.postmanApiKey, collectionId);
         
         const findRequest = (items, id) => {
@@ -119,10 +118,10 @@ const generateTestScript = async (req, res) => {
         }
         
         const newTestScript = `// AI-Generated Test (${new Date().toUTCString()})\n${scriptCode}\n`;
-        // Prepend the new script to the top for visibility in Postman UI
         testEvent.script.exec.unshift(newTestScript);
 
-        // *** THE FIX: Use the new, specific function to update only the request ***
+        // *** THE FLAWLESS FIX ***
+        // We now call the new, specific function to update only the single request.
         await postmanService.updateRequestInCollection(
             req.postmanApiKey,
             collectionId,
