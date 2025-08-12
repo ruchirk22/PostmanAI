@@ -2,187 +2,276 @@
 
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 
-// No changes to getCollectionAnalysis, generateExampleBody, generateExampleQueryParams
-
-const getCollectionAnalysis = async (collectionSummary) => {
-  const apiKey = process.env.GOOGLE_API_KEY;
-  if (!apiKey) throw new Error('Google API key is not defined in .env file.');
-
-  try {
+const getAiModel = () => {
+    const apiKey = process.env.GOOGLE_API_KEY;
+    if (!apiKey) throw new Error('Google API key is not defined in .env file.');
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+    return genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+}
+
+const getCollectionAnalysis = async (collection) => {
+  const model = getAiModel();
+  const prompt = `
+    As an expert API analyst, analyze the following Postman collection. 
+    Provide a concise, high-level explanation of the API's primary purpose and functionality in Markdown format.
+    Your analysis should be easy to understand and well-presented.
+
+    Collection Details:
+    Name: ${collection.info.name}
+    Description: ${collection.info.description || 'N/A'}
+    Total Requests: ${collection.item.length}
+
+    Your concise analysis:
+  `;
+  const result = await model.generateContent(prompt);
+  return result.response.text();
+};
+
+const getSecurityAudit = async (collection) => {
+    const model = getAiModel();
     const prompt = `
-      As an expert API analyst, analyze the following Postman collection summary. 
-      Provide a concise, high-level explanation of the API's primary purpose and functionality.
-      Use the endpoint details, including any specified request body keys, to inform your analysis.
+# Security Auditor Prompt for Postman API Collections
 
-      Collection Summary:
-      ${collectionSummary}
+## Role Definition
+You are a professional cybersecurity auditor specializing in API security assessments. Your task is to conduct a comprehensive security audit of the provided Postman API collection and generate a detailed security audit report in Markdown format.
 
-      Your analysis:
-    `;
+## Analysis Framework
+Analyze the Postman collection systematically across these security domains:
+
+### 1. Authentication & Authorization
+- Review authentication methods used (API keys, tokens, OAuth, etc.)
+- Check for hardcoded credentials or sensitive tokens in requests
+- Evaluate authorization mechanisms and access controls
+- Identify missing authentication on sensitive endpoints
+- Assess token storage and transmission security
+
+### 2. Data Protection & Privacy
+- Identify endpoints handling sensitive data (PII, financial, health data)
+- Check for proper data encryption in transit and at rest
+- Review data masking and sanitization practices
+- Evaluate compliance with data protection regulations (GDPR, CCPA)
+- Assess data retention and deletion policies
+
+### 3. Input Validation & Injection Vulnerabilities
+- Review request parameters for proper validation
+- Check for potential SQL injection vulnerabilities
+- Identify NoSQL injection risks
+- Evaluate XSS prevention measures
+- Assess command injection possibilities
+- Review file upload security controls
+
+### 4. Network Security
+- Analyze HTTPS usage and SSL/TLS configurations
+- Check for insecure HTTP endpoints
+- Review CORS policies and configurations
+- Evaluate rate limiting and throttling mechanisms
+- Assess network-level security controls
+
+### 5. Error Handling & Information Disclosure
+- Review error responses for information leakage
+- Check for verbose error messages revealing system details
+- Evaluate logging and monitoring practices
+- Assess debug information exposure
+- Review stack trace handling
+
+### 6. Business Logic Security
+- Identify potential business logic flaws
+- Review workflow and process security
+- Check for privilege escalation opportunities
+- Evaluate transaction integrity
+- Assess race condition vulnerabilities
+
+## Report Structure
+Generate your security audit report using this exact structure:
+
+\`\`\`markdown
+# API Security Audit Report
+
+## Executive Summary
+[2-3 paragraph summary of overall security posture, critical findings, and recommendations]
+
+## Audit Scope
+- Collection Name: ${collection.info.name}
+- Number of Endpoints: ${collection.item.length}
+- Audit Date: ${new Date().toISOString().split('T')[0]}
+- Auditor: AI Security Auditor
+
+## Critical Findings
+[List high-severity security issues that require immediate attention]
+
+### Finding 1: [Title]
+- **Severity:** Critical
+- **Affected Endpoints:** [List specific endpoints]
+- **Description:** [Detailed explanation]
+- **Risk Impact:** [Potential consequences]
+- **Recommendation:** [Specific remediation steps]
+
+## High-Risk Findings
+[List medium to high-severity issues]
+
+### Finding X: [Title]
+- **Severity:** High
+- **Affected Endpoints:** [List]
+- **Description:** [Details]
+- **Risk Impact:** [Impact]
+- **Recommendation:** [Fix]
+
+## Medium-Risk Findings
+[List medium-severity issues]
+
+## Low-Risk Findings & Best Practices
+[List minor issues and improvement opportunities]
+
+## Security Score
+**Overall Security Rating:** [Score/10 or A-F grade]
+
+### Score Breakdown:
+- Authentication & Authorization: [Score/10]
+- Data Protection: [Score/10]
+- Input Validation: [Score/10]
+- Network Security: [Score/10]
+- Error Handling: [Score/10]
+- Business Logic: [Score/10]
+
+## Compliance Assessment
+[Evaluate against common standards: OWASP API Top 10, PCI DSS, etc.]
+
+## Remediation Roadmap
+### Immediate Actions (0-30 days)
+1. [Action item]
+2. [Action item]
+
+### Short-term Improvements (1-3 months)
+1. [Action item]
+2. [Action item]
+
+### Long-term Enhancements (3-6 months)
+1. [Action item]
+2. [Action item]
+
+## Conclusion
+[Final assessment and key takeaways]
+\`\`\`
+
+Here is the JSON for the collection to be audited:
+${JSON.stringify(collection, null, 2)}
+`;
+
     const result = await model.generateContent(prompt);
     return result.response.text();
-  } catch (error) {
-    console.error('Error in getCollectionAnalysis:', error);
-    throw new Error('Failed to get analysis from Gemini API.');
-  }
 };
 
-const generateExampleBody = async (requestDetails) => {
-  const apiKey = process.env.GOOGLE_API_KEY;
-  if (!apiKey) throw new Error('Google API key is not defined in .env file.');
+const generateApiDocs = async (collection) => {
+    const model = getAiModel();
+    const prompt = `
+# API Documentation Generator Prompt for Postman Collections
 
-  try {
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
-    let prompt = `
-      You are an API testing assistant. Generate a realistic, example JSON request body.
-      - ONLY output the raw JSON body.
-      - Do not include any explanation, markdown (like \`\`\`json), or text other than the JSON itself.
-      - The JSON should be appropriate for this request:
-      Request Name: "${requestDetails.name}"
-      Method: ${requestDetails.method}
-      Path: "${requestDetails.path}"
-    `;
-    if (requestDetails.originalBody) {
-        prompt += `
-      The original request has this structure, use it as a reference for the keys, but generate new, realistic values:
-      ${JSON.stringify(requestDetails.originalBody, null, 2)}
-      `;
-    }
-    prompt += `
-      Example JSON Body:
-    `;
+## Role Definition
+You are a technical documentation specialist who creates comprehensive, professional API documentation from Postman collections. Your task is to analyze the provided Postman collection and generate complete, developer-ready API documentation in Markdown format that follows industry best practices and standards.
+
+## Documentation Structure Template
+Generate documentation using this exact structure:
+
+\`\`\`markdown
+# ${collection.info.name} API Documentation
+
+## Overview
+${collection.info.description || '[2-3 paragraph description of the API, its purpose, and key capabilities]'}
+
+**Version:** ${collection.info.version || '1.0.0'}
+**Base URL:** \`[Determine Base URL from requests]\`
+**Last Updated:** ${new Date().toISOString().split('T')[0]}
+
+## Table of Contents
+- [Authentication](#authentication)
+- [Error Handling](#error-handling)
+- [Rate Limiting](#rate-limiting)
+- [Data Models](#data-models)
+- [Endpoints](#endpoints)
+  
+## Authentication
+[Detailed authentication documentation based on collection auth methods]
+
+## Error Handling
+[Generic error handling section, or derive from examples if present]
+
+## Rate Limiting
+[Rate limiting information if applicable]
+
+## Data Models
+[Extract and document data models from request/response bodies]
+
+## Endpoints
+[Document each endpoint from the collection here, following the detailed structure below for each]
+
+---
+#### [HTTP METHOD] [Endpoint Path]
+[Brief description of what this endpoint does]
+
+**URL:** \`[METHOD] [Full URL Path]\`
+**Authentication:** [Required auth method]
+**Parameters:**
+**Request Body:**
+**Response:**
+---
+\`\`\`
+
+Here is the JSON for the collection to be documented:
+${JSON.stringify(collection, null, 2)}
+`;
+    const result = await model.generateContent(prompt);
+    return result.response.text();
+};
+
+const generateTestScript = async (requestItem) => {
+    const model = getAiModel();
+    const prompt = `
+# Postman JavaScript Test Script Generator Prompt
+
+## Role Definition
+You are a professional API testing specialist who creates comprehensive JavaScript test scripts for Postman. Your task is to analyze the provided Postman request and generate a complete, production-ready test script that can be directly copied and pasted into the Postman "Tests" tab.
+
+## Output Format Requirements
+- Provide ONLY the raw JavaScript code block.
+- No explanatory text, backticks, or markdown before or after the code.
+- Ensure code is immediately copy-pasteable into Postman.
+
+## Test Script Structure Template
+Generate tests following this structure:
+\`\`\`javascript
+// ===========================================
+// Test Suite: ${requestItem.name}
+// Method: ${requestItem.request.method}
+// Endpoint: /${requestItem.request.url.path ? requestItem.request.url.path.join('/') : ''}
+// Generated: ${new Date().toISOString().split('T')[0]}
+// ===========================================
+
+pm.test("Status code is valid", function () {
+    pm.expect(pm.response.code).to.be.oneOf([200, 201, 202, 204]);
+});
+
+pm.test("Response time is acceptable", function () {
+    pm.expect(pm.response.responseTime).to.be.below(2000);
+});
+
+// Add more specific tests based on the request below
+\`\`\`
+
+Analyze the provided Postman request and generate the complete JavaScript test script now.
+
+Request JSON:
+${JSON.stringify(requestItem, null, 2)}
+`;
+
     const result = await model.generateContent(prompt);
     let text = result.response.text();
-    text = text.replace(/```json/g, '').replace(/```/g, '').trim();
-    return text;
-  } catch (error) {
-    console.error('Error in generateExampleBody:', error);
-    throw new Error('Failed to generate example body from Gemini API.');
-  }
+    // Clean up potential markdown formatting from the AI response
+    return text.replace(/^```javascript\n?/, '').replace(/```$/, '').trim();
 };
-
-const generateExampleQueryParams = async (requestName, requestPath) => {
-  const apiKey = process.env.GOOGLE_API_KEY;
-  if (!apiKey) throw new Error('Google API key is not defined in .env file.');
-
-  try {
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
-    const prompt = `
-      You are an API testing assistant. For the following GET request, suggest 1 to 3 realistic query parameters.
-      - ONLY output a valid JSON array of objects, where each object has a "key" and a "value" property.
-      - Do not include any explanation or other text.
-      - If no parameters seem logical, return an empty array [].
-
-      Request Name: "${requestName}"
-      Path: "${requestPath}"
-
-      Example JSON Array:
-    `;
-    const result = await model.generateContent(prompt);
-    let text = result.response.text();
-    const jsonMatch = text.match(/\[.*\]/s);
-    if (jsonMatch) {
-      try {
-        return JSON.parse(jsonMatch[0]);
-      } catch (e) {
-        console.error("Failed to parse JSON for query params:", text);
-        return [];
-      }
-    }
-    return [];
-  } catch (error) {
-    console.error(`Error parsing or generating query params for "${requestName}":`, error);
-    return [];
-  }
-};
-
-/**
- * **NEW**: Generates a Postman test script for a request.
- * @param {object} requestObject - The Postman request object.
- * @returns {Promise<string>} A promise that resolves to the JavaScript test code.
- */
-const generateTestScript = async (requestObject) => {
-    const apiKey = process.env.GOOGLE_API_KEY;
-    if (!apiKey) throw new Error('Google API key is not defined in .env file.');
-
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
-
-    let prompt = `
-        You are an API test automation engineer. Generate a Postman test script for the following request.
-        The script should be in JavaScript.
-        - ALWAYS include a test for the status code (e.g., 200, 201).
-        - If the request is a GET, or has an example response, add a test to check if the response is valid JSON.
-        - If there is an example JSON response, add a test to check for the existence of 1-2 key properties.
-
-        Request Details:
-        Name: ${requestObject.name}
-        Method: ${requestObject.method}
-        
-        ONLY output the raw JavaScript code for the test script. Do not include markdown or explanations.
-    `;
-
-    // Add example response info to the prompt if available
-    if (requestObject.responses && requestObject.responses[0] && requestObject.responses[0].body) {
-        prompt += `
-        Example Response Body:
-        ${requestObject.responses[0].body}
-        `;
-    }
-
-    try {
-        const result = await model.generateContent(prompt);
-        let text = result.response.text();
-        return text.replace(/```javascript/g, '').replace(/```/g, '').trim();
-    } catch (error) {
-        console.error('Error in generateTestScript:', error);
-        throw new Error('Failed to generate test script from Gemini API.');
-    }
-};
-
-/**
- * **NEW**: Audits a collection for security and performance issues.
- * @param {string} collectionSummary - A detailed summary of the collection.
- * @returns {Promise<string>} A promise that resolves to a Markdown report.
- */
-const getSecurityAudit = async (collectionSummary) => {
-    const apiKey = process.env.GOOGLE_API_KEY;
-    if (!apiKey) throw new Error('Google API key is not defined in .env file.');
-
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
-
-    const prompt = `
-        You are a senior cybersecurity and API performance analyst.
-        Analyze the following API collection summary and provide a report in Markdown format.
-        Focus on identifying potential security vulnerabilities, performance issues, and violations of REST best practices.
-        For each issue, provide a clear title, a brief explanation of the risk, and a specific recommendation.
-        If no major issues are found, state that the collection appears to follow good practices.
-
-        API Collection Summary:
-        ${collectionSummary}
-
-        Your Markdown Report:
-    `;
-
-    try {
-        const result = await model.generateContent(prompt);
-        return result.response.text();
-    } catch (error) {
-        console.error('Error in getSecurityAudit:', error);
-        throw new Error('Failed to get security audit from Gemini API.');
-    }
-};
-
 
 module.exports = {
   getCollectionAnalysis,
-  generateExampleBody,
-  generateExampleQueryParams,
-  generateTestScript,
   getSecurityAudit,
+  generateApiDocs,
+  generateTestScript,
 };

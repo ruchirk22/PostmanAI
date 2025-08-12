@@ -1,27 +1,32 @@
 // src/app.js
 
-// IMPORTANT: Load environment variables from .env file at the very top
 const dotenv = require('dotenv');
-dotenv.config();
-
+dotenv.config({ path: require('path').resolve(__dirname, '../.env') });
 const express = require('express');
-const path = require('path'); // Import path module
+const path = require('path');
+const bodyParser = require('body-parser');
 const apiRoutes = require('./routes/api');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Middleware to parse JSON and serve static files from 'public' directory
-app.use(express.json());
+// Middleware
+app.use(bodyParser.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
 // API routes are prefixed with /api
 app.use('/api', apiRoutes);
 
-// The root path '/' will now serve index.html from the 'public' folder
+// Serve the landing page at the root
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
+
+// Serve the main application page
+app.get('/main', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'main.html'));
+});
+
 
 app.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);

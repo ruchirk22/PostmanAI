@@ -1,18 +1,13 @@
 // src/controllers/postmanController.js
 
 const postmanService = require('../services/postmanService');
-const fileHelper = require('../utils/fileHelper');
-const path = require('path');
 
-const getAndSaveCollections = async (req, res) => {
+const getCollections = async (req, res) => {
   try {
-    console.log('Fetching collections from Postman API...');
-    const collections = await postmanService.fetchCollections();
-    const collectionsFilePath = path.join(__dirname, '..', 'data', 'collections.json');
-    await fileHelper.saveJsonToFile(collectionsFilePath, collections);
-
+    const { workspaceId } = req.query;
+    const collections = await postmanService.fetchCollections(req.postmanApiKey, workspaceId);
     res.status(200).json({
-      message: 'Successfully fetched and saved Postman collections.',
+      message: 'Successfully fetched Postman collections.',
       count: collections.length,
       collections: collections.map(c => ({ id: c.id, name: c.name })),
     });
@@ -21,13 +16,10 @@ const getAndSaveCollections = async (req, res) => {
   }
 };
 
-/**
- * **NEW**: Gets the full details of a single collection, including all items (requests/folders).
- */
 const getSingleCollectionDetails = async (req, res) => {
     try {
         const { collectionId } = req.params;
-        const collection = await postmanService.fetchSingleCollection(collectionId);
+        const collection = await postmanService.fetchSingleCollection(req.postmanApiKey, collectionId);
         if (!collection) {
             return res.status(404).json({ message: 'Collection not found.' });
         }
@@ -38,6 +30,6 @@ const getSingleCollectionDetails = async (req, res) => {
 };
 
 module.exports = { 
-    getAndSaveCollections,
-    getSingleCollectionDetails, // Export the new function
+    getCollections,
+    getSingleCollectionDetails,
 };

@@ -4,17 +4,8 @@
     "name": "EQIX ORDS",
     "owner": "38713504",
     "createdAt": "2024-12-20T09:32:50.000Z",
-    "updatedAt": "2025-04-29T06:00:31.000Z",
+    "updatedAt": "2025-08-11T16:09:19.000Z",
     "uid": "38713504-a7f6283b-c279-4f11-8ab8-f6c496505d2d",
-    "isPublic": false
-  },
-  {
-    "id": "98861f78-3632-4f7f-b896-512f702de10a",
-    "name": "EQIX ORDS [AI Examples]",
-    "owner": "38713504",
-    "createdAt": "2025-08-11T09:23:11.000Z",
-    "updatedAt": "2025-08-11T09:25:00.000Z",
-    "uid": "38713504-98861f78-3632-4f7f-b896-512f702de10a",
     "isPublic": false
   },
   {
@@ -36,44 +27,8 @@
     "name": "PostmanAI",
     "owner": "38713504",
     "createdAt": "2025-08-11T09:21:27.000Z",
-    "updatedAt": "2025-08-11T09:22:24.000Z",
+    "updatedAt": "2025-08-11T11:21:53.000Z",
     "uid": "38713504-daf52c8f-6dd3-4e15-aa98-b58c5a61ce18",
-    "isPublic": false
-  },
-  {
-    "id": "94770607-af89-4139-9fdb-63e1ba8bfcda",
-    "name": "PostmanAI [AI Examples]",
-    "owner": "38713504",
-    "createdAt": "2025-08-11T10:20:09.000Z",
-    "updatedAt": "2025-08-11T10:20:13.000Z",
-    "uid": "38713504-94770607-af89-4139-9fdb-63e1ba8bfcda",
-    "isPublic": false
-  },
-  {
-    "id": "442ed5dc-7d17-4ad0-9034-d0b39cf4aad9",
-    "name": "PostmanAI [AI Examples]",
-    "owner": "38713504",
-    "createdAt": "2025-08-11T09:33:37.000Z",
-    "updatedAt": "2025-08-11T09:33:42.000Z",
-    "uid": "38713504-442ed5dc-7d17-4ad0-9034-d0b39cf4aad9",
-    "isPublic": false
-  },
-  {
-    "id": "53580cf6-ed43-49c0-8b38-045b69727816",
-    "name": "PostmanAI [AI Examples]",
-    "owner": "38713504",
-    "createdAt": "2025-08-11T09:56:59.000Z",
-    "updatedAt": "2025-08-11T09:57:05.000Z",
-    "uid": "38713504-53580cf6-ed43-49c0-8b38-045b69727816",
-    "isPublic": false
-  },
-  {
-    "id": "4dee2acd-e316-4e80-a726-72d394deaa15",
-    "name": "PostmanAI [AI Examples]",
-    "owner": "38713504",
-    "createdAt": "2025-08-11T09:34:02.000Z",
-    "updatedAt": "2025-08-11T09:34:25.000Z",
-    "uid": "38713504-4dee2acd-e316-4e80-a726-72d394deaa15",
     "isPublic": false
   },
   {
@@ -83,24 +38,6 @@
     "createdAt": "2024-11-21T08:53:28.000Z",
     "updatedAt": "2025-05-05T14:03:05.000Z",
     "uid": "38713504-58b21317-84c9-4d08-b387-82816013122c",
-    "isPublic": false
-  },
-  {
-    "id": "746d8f63-3866-4814-b553-03557381477f",
-    "name": "Tests [AI Examples]",
-    "owner": "38713504",
-    "createdAt": "2025-08-11T09:22:33.000Z",
-    "updatedAt": "2025-08-11T09:22:34.000Z",
-    "uid": "38713504-746d8f63-3866-4814-b553-03557381477f",
-    "isPublic": false
-  },
-  {
-    "id": "ab6d3a42-47e9-42f5-a50d-a9ba2a252ef6",
-    "name": "Tests [AI Examples]",
-    "owner": "38713504",
-    "createdAt": "2025-08-11T09:17:28.000Z",
-    "updatedAt": "2025-08-11T09:17:29.000Z",
-    "uid": "38713504-ab6d3a42-47e9-42f5-a50d-a9ba2a252ef6",
     "isPublic": false
   }
 ]

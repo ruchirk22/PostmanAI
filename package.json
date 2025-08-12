@@ -13,7 +13,11 @@
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
     "axios": "^1.11.0",
+    "body-parser": "^2.2.0",
     "dotenv": "^17.2.1",
-    "express": "^5.1.0"
+    "express": "^5.1.0",
+    "html-to-docx": "^1.8.0",
+    "mammoth": "^1.10.0",
+    "showdown": "^2.1.0"
   }
 }

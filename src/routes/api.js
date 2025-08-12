@@ -5,23 +5,27 @@ const router = express.Router();
 const postmanController = require('../controllers/postmanController');
 const aiController = require('../controllers/aiController');
 
-// Feature 1: Fetch all collection summaries
-router.get('/fetch-collections', postmanController.getAndSaveCollections);
+// Middleware to extract Postman API key from header
+const apiKeyMiddleware = (req, res, next) => {
+    req.postmanApiKey = req.headers['x-api-key'];
+    if (!req.postmanApiKey) {
+        return res.status(401).json({ message: 'Postman API Key is required in x-api-key header.' });
+    }
+    next();
+};
 
-// **NEW**: Fetch details of a single collection, including its requests
+// Apply the API key middleware to all routes in this file
+router.use(apiKeyMiddleware);
+
+// --- Collection Routes ---
+router.get('/fetch-collections', postmanController.getCollections);
 router.get('/collection/:collectionId', postmanController.getSingleCollectionDetails);
 
-// Feature 2: Analyze a single collection
+// --- AI-Powered Routes ---
 router.get('/analyze-collection/:collectionId', aiController.analyzeCollection);
-
-// Feature 3: Generate example requests for a collection
-router.post('/generate-examples/:collectionId', aiController.generateExamples);
-
-// **NEW** Feature 4: Generate a test script for a single request
-router.post('/generate-test/:collectionId/:requestId', aiController.generateTestScript);
-
-// **NEW** Feature 5: Run a security and performance audit on a collection
 router.get('/audit-collection/:collectionId', aiController.auditCollection);
+router.get('/generate-docs/:collectionId', aiController.generateApiDocumentation);
+router.post('/generate-test/:collectionId/:requestId', aiController.generateTestScript);
 
 
 module.exports = router;
