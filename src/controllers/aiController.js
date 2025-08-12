@@ -90,53 +90,76 @@ const generateTestScript = async (req, res) => {
         const { collectionId, requestId } = req.params;
         const collection = await postmanService.fetchSingleCollection(req.postmanApiKey, collectionId);
         
-        const findRequest = (items, id) => {
-            for (const item of items) {
-                if (item.id === id) return item;
-                if (item.item) {
-                    const found = findRequest(item.item, id);
-                    if (found) return found;
+        // This function recursively finds and updates the correct request in the collection object
+        const updateRequestInObject = (items, id, newScript) => {
+             for (let i = 0; i < items.length; i++) {
+                if (items[i].id === id) {
+                    // Ensure the request and event objects exist
+                    items[i].request = items[i].request || {};
+                    items[i].request.event = items[i].request.event || [];
+                    
+                    let testEvent = items[i].request.event.find(e => e.listen === 'test');
+                    if (!testEvent) {
+                        testEvent = { listen: 'test', script: { type: 'text/javascript', exec: [] } };
+                        items[i].request.event.push(testEvent);
+                    }
+                    
+                    // Prepend the new script to the top
+                    testEvent.script.exec.unshift(newScript);
+                    return items[i].name; // Return the name of the updated request
+                }
+                // Recurse into folders
+                if (items[i].item) {
+                    const updatedName = updateRequestInObject(items[i].item, id, newScript);
+                    if (updatedName) return updatedName;
                 }
             }
             return null;
         };
-        const itemToUpdate = findRequest(collection.item, requestId);
-
-        if (!itemToUpdate || !itemToUpdate.request) {
+        
+        const itemToUpdate = findRequest(collection.item, requestId); // We need a findRequest helper for the name
+         if (!itemToUpdate) {
             return res.status(404).json({ message: 'Request not found in collection.' });
         }
 
         const scriptCode = await aiService.generateTestScript(itemToUpdate);
-        
-        const updatedRequestData = { ...itemToUpdate.request };
-        updatedRequestData.event = updatedRequestData.event || [];
-        
-        let testEvent = updatedRequestData.event.find(e => e.listen === 'test');
-        if (!testEvent) {
-            testEvent = { listen: 'test', script: { type: 'text/javascript', exec: [] } };
-            updatedRequestData.event.push(testEvent);
-        }
-        
         const newTestScript = `// AI-Generated Test (${new Date().toUTCString()})\n${scriptCode}\n`;
-        testEvent.script.exec.unshift(newTestScript);
 
-        // *** THE FLAWLESS FIX ***
-        // We now call the new, specific function to update only the single request.
-        await postmanService.updateRequestInCollection(
+        // Update the collection object in memory
+        const updatedRequestName = updateRequestInObject(collection.item, requestId, newTestScript);
+       
+        if (!updatedRequestName) {
+             return res.status(404).json({ message: 'Could not find request to update in collection object.' });
+        }
+
+        // *** THE FIX: Reverting to the full collection update method ***
+        // This sends the entire modified collection back to Postman.
+        await postmanService.updateCollection(
             req.postmanApiKey,
             collectionId,
-            requestId,
-            updatedRequestData
+            collection
         );
 
         res.status(200).json({ 
-            message: `Successfully added AI test script to request: ${itemToUpdate.name}`,
+            message: `Successfully added AI test script to request: ${updatedRequestName}`,
             script: scriptCode
         });
     } catch (error) {
         console.error('Error generating test script:', error);
         res.status(500).json({ message: error.message });
     }
+};
+
+// You'll also need this helper function in the same file, you can place it above generateTestScript
+const findRequest = (items, id) => {
+    for (const item of items) {
+        if (item.id === id) return item;
+        if (item.item) {
+            const found = findRequest(item.item, id);
+            if (found) return found;
+        }
+    }
+    return null;
 };
 
 module.exports = { 
