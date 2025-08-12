@@ -57,9 +57,33 @@ const updateCollection = async (apiKey, collectionId, collectionData) => {
     }
 };
 
+const updateRequestInCollection = async (apiKey, collectionId, requestId, requestData) => {
+    if (!apiKey) {
+        throw new Error('Postman API key is required.');
+    }
+    const url = `${postmanApiUrl}/collections/${collectionId}/requests/${requestId}`;
+    
+    // The payload should contain the name, description, and the event (test script)
+    const payload = {
+        name: requestData.name,
+        description: requestData.description || null,
+        event: requestData.event,
+    };
+
+    try {
+        const response = await axios.put(url, { request: payload }, {
+            headers: getHeaders(apiKey),
+        });
+        return response.data.request;
+    } catch (error) {
+        console.error(`Error updating request "${requestId}":`, error.response ? JSON.stringify(error.response.data, null, 2) : error.message);
+        throw new Error('Failed to update request in collection.');
+    }
+};
 
 module.exports = {
   fetchCollections,
   fetchSingleCollection,
   updateCollection,
+  updateRequestInCollection, // Add this line
 };
