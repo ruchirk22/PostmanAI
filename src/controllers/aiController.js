@@ -71,96 +71,73 @@ const generateApiDocumentation = async (req, res) => {
 
 /**
  * Helper function to recursively find a request (item) by its ID within a collection's structure.
- * It can traverse through folders within the collection.
  * @param {Array} items - The array of items (requests or folders) from a Postman collection.
  * @param {string} requestId - The ID of the request to find.
  * @returns {object|null} The found item object or null if not found.
  */
 const findRequestInCollection = (items, requestId) => {
     for (const item of items) {
-        // Check if the current item is the one we're looking for
-        if (item.id === requestId) {
-            return item;
-        }
-        // If the item is a folder (i.e., it has an 'item' property which is an array), recurse into it
+        if (item.id === requestId) return item;
         if (item.item && Array.isArray(item.item)) {
             const found = findRequestInCollection(item.item, requestId);
-            if (found) {
-                return found;
-            }
+            if (found) return found;
         }
     }
-    return null; // Return null if the request is not found in the collection
+    return null;
 };
 
 const generateTestScript = async (req, res) => {
     try {
         const { collectionId, requestId } = req.params;
 
-        // 1. Fetch the entire collection from Postman to get the context
+        // 1. Fetch the entire collection from Postman. We will modify this object and send it back.
         const collection = await postmanService.fetchSingleCollection(req.postmanApiKey, collectionId);
         if (!collection || !collection.item) {
             return res.status(404).json({ message: 'Collection not found or is empty.' });
         }
 
-        // 2. Find the specific request item within the collection's structure
+        // 2. Find the specific request item within the collection's structure.
         const itemToUpdate = findRequestInCollection(collection.item, requestId);
-
         if (!itemToUpdate || !itemToUpdate.request) {
             return res.status(404).json({ message: 'The specified request could not be found in the collection.' });
         }
 
-        // 3. Call the AI service to generate the JavaScript test script code
+        // 3. Call the AI service to generate the JavaScript test script code.
         const scriptCode = await aiService.generateTestScript(itemToUpdate);
         if (!scriptCode) {
             return res.status(500).json({ message: 'The AI service failed to generate a test script.' });
         }
 
-        // 4. Prepare the updated request object by safely modifying its test events
-        // Create a deep copy of the request object to avoid any unintended side effects
-        const updatedRequest = JSON.parse(JSON.stringify(itemToUpdate.request));
+        // 4. Modify the test events directly on the fetched collection object.
+        const requestObject = itemToUpdate.request;
+        requestObject.event = requestObject.event || [];
+        let testEvent = requestObject.event.find(e => e.listen === 'test');
         
-        // Ensure the 'event' array exists on the request
-        updatedRequest.event = updatedRequest.event || [];
-        
-        // Find the 'test' event listener in the events array
-        let testEvent = updatedRequest.event.find(e => e.listen === 'test');
-        
-        // If no 'test' event listener exists, create a new one
         if (!testEvent) {
-            testEvent = { 
-                listen: 'test', 
-                script: { 
-                    type: 'text/javascript', 
-                    exec: [] 
-                } 
-            };
-            updatedRequest.event.push(testEvent);
+            testEvent = { listen: 'test', script: { type: 'text/javascript', exec: [] } };
+            requestObject.event.push(testEvent);
         }
         
-        // Ensure the 'exec' array (which holds the script lines) exists
         testEvent.script.exec = testEvent.script.exec || [];
 
-        // 5. Prepend the newly generated script to the top of the execution array for visibility
+        // 5. Prepend the newly generated script to the top of the execution array.
         const newTestScript = `// AI-Generated Test Script (Generated on: ${new Date().toUTCString()})\n${scriptCode}\n`;
         testEvent.script.exec.unshift(newTestScript);
 
-        // 6. Call the Postman service to update only the single request in the collection
-        await postmanService.updateRequestInCollection(
+        // 6. Call the service to update the ENTIRE collection, which is the reliable method.
+        await postmanService.updateCollection(
             req.postmanApiKey,
             collectionId,
-            requestId,
-            updatedRequest // Pass the entire modified request object as the payload
+            collection // Pass the entire modified collection object
         );
 
-        // 7. Send a success response back to the client
+        // 7. Send a success response.
         res.status(200).json({
             message: `Successfully generated and added a new test script to the request: "${itemToUpdate.name}"`,
             script: scriptCode
         });
 
     } catch (error) {
-        // Log detailed error information for easier debugging on the server
         console.error('Error in generateTestScript controller:', error.message, error.stack);
         res.status(500).json({ message: 'An internal server error occurred while generating the test script.' });
     }
