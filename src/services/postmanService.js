@@ -52,7 +52,8 @@ const updateCollection = async (apiKey, collectionId, collectionData) => {
             headers: getHeaders(apiKey),
         });
         return response.data.collection;
-    } catch (error) {
+    } catch (error)
+    {
         console.error(`Error updating collection "${collectionId}":`, error.response ? JSON.stringify(error.response.data, null, 2) : error.message);
         throw new Error('Failed to update collection.');
     }
@@ -73,17 +74,20 @@ const updateRequestInCollection = async (apiKey, collectionId, requestId, reques
     }
     const url = `${postmanApiUrl}/collections/${collectionId}/requests/${requestId}`;
     
-    // The payload for a request update is the request object itself.
-    // The `requestData` parameter is the complete, modified request object.
-    const payload = requestData;
+    // *** THE DEFINITIVE FIX ***
+    // The Postman API for updating a single request requires the entire request object
+    // to be nested under a "request" key in the payload.
+    const payload = {
+        request: requestData
+    };
 
     try {
-        // The Postman API for updating a single request expects the payload directly.
-        // It should NOT be nested under a 'request' key, which was the source of the error.
+        // The payload is now correctly structured according to Postman API documentation.
         const response = await axios.put(url, payload, {
             headers: getHeaders(apiKey),
         });
-        return response.data;
+        // The successful response data contains the updated request.
+        return response.data.request;
     } catch (error) {
         // Provide more detailed error logging to help with future debugging.
         const errorDetails = error.response 
